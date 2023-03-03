@@ -1,0 +1,7 @@
+FROM python:3.8.10
+
+RUN pip install Flask==2.2.2
+
+COPY degrees_api.py /degrees_api.py
+
+CMD ["python", "iss_tracker.py"]
