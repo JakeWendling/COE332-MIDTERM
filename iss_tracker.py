@@ -1,10 +1,57 @@
 import xmltodict
 import requests
+import math
+import time
+from geopy.geocoders import Nominatim
 from typing import List
 from flask import Flask, request
 
 app = Flask(__name__)
 data = None
+
+@app.route('/comment', methods=['GET'])
+def getComment() -> dict:
+    commentList = data['ndm']['oem']['body']['segment']['data']['COMMENT']
+    return commentList
+
+@app.route('/header', methods=['GET'])
+def getHeader() -> dict:
+    header = data['ndm']['oem']['header']
+    return header
+
+@app.route('/metadata', methods=['GET'])
+def getMetadata() -> dict:
+    metadata = data['ndm']['oem']['body']['segment']['metadata']
+    return metadata
+
+@app.route('/now', methods=['GET'])
+def getNow() -> dict:
+    now = getLocation(getEpochs()[-1:])
+    return now
+
+@app.route('/epochs/<epoch>/location', methods=['GET'])
+def getLocation(epoch) -> dict:
+    global data
+    if not data:
+        return "Data not found\n", 400
+    stateList = data['ndm']['oem']['body']['segment']['data']['stateVector']
+    for state in stateList:
+        if state['EPOCH'] == epoch:
+            MEAN_EARTH_RADIUS = 6371 #km
+            x = float(state['X']['#text'])
+            y = float(state['Y']['#text'])
+            z = float(state['Z']['#text'])
+            t = time.strptime(epoch[9:-5], '%H:%M:%S')
+            hrs = t[3]
+            mins = t[4]
+            lat = math.degrees(math.atan2(z, math.sqrt(x**2 + y**2)))
+            lon = math.degrees(math.atan2(y, x)) - ((hrs-12)+(mins/60))*(360/24) + 24
+            alt = math.sqrt(x**2 + y**2 + z**2) - MEAN_EARTH_RADIUS 
+            geocoder = Nominatim(user_agent='iss_tracker')
+            geoloc = geocoder.reverse((lat, lon), zoom=15, language='en')
+            return {'location': [{'latitude': lat, 'longitude': lon, 'altitude': alt}, 'geoposition': str(geoloc)], 'speed': getSpeed(epoch)}
+    return "Error: Epoch not found\n", 400
+    
 
 @app.route('/help', methods=['GET'])
 def help() -> str:
@@ -160,5 +207,8 @@ def getSpeed(epoch: str) -> float:
     return "Error: Epoch not found\n", 400
 
 if __name__ == '__main__':
+    postData()
     app.run(debug=True, host='0.0.0.0')
+
+    
     
