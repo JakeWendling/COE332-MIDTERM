@@ -26,11 +26,12 @@ def getMetadata() -> dict:
 
 @app.route('/now', methods=['GET'])
 def getNow() -> dict:
-    now = getLocation(getEpochs()[-1:])
+    lastEpoch = getEpochs()[len(getEpochs())-1]
+    now = getLocation(lastEpoch)
     return now
 
 @app.route('/epochs/<epoch>/location', methods=['GET'])
-def getLocation(epoch) -> dict:
+def getLocation(epoch: str) -> dict:
     global data
     if not data:
         return "Data not found\n", 400
@@ -45,11 +46,19 @@ def getLocation(epoch) -> dict:
             hrs = t[3]
             mins = t[4]
             lat = math.degrees(math.atan2(z, math.sqrt(x**2 + y**2)))
-            lon = math.degrees(math.atan2(y, x)) - ((hrs-12)+(mins/60))*(360/24) + 24
-            alt = math.sqrt(x**2 + y**2 + z**2) - MEAN_EARTH_RADIUS 
+            lon = math.degrees(math.atan2(y, x)) - ((hrs-12)+(mins/60))*(360/24) + 32
+            alt = math.sqrt(x**2 + y**2 + z**2) - MEAN_EARTH_RADIUS
+            if lat > 180.0:
+                lat -= 360.0
+            elif lat < -180.0:
+                lat += 360.0
+            if lon > 180.0:
+                lon -= 360.0
+            elif lon < -180.0:
+                lon += 360.0
             geocoder = Nominatim(user_agent='iss_tracker')
             geoloc = geocoder.reverse((lat, lon), zoom=15, language='en')
-            return {'location': [{'latitude': lat, 'longitude': lon, 'altitude': alt}, 'geoposition': str(geoloc)], 'speed': getSpeed(epoch)}
+            return {'location': {'latitude': lat, 'longitude': lon, 'altitude': alt, 'geoposition': geoloc.raw['address']}, 'speed': getSpeed(epoch)}
     return "Error: Epoch not found\n", 400
     
 
@@ -203,7 +212,7 @@ def getSpeed(epoch: str) -> float:
             y_dot = float(state['Y_DOT']['#text'])
             z_dot = float(state['Z_DOT']['#text'])
             speed = (x_dot**2 + y_dot**2 + z_dot**2)**.5
-            return f"{str(speed)} {state['Z_DOT']['@units']}\n"
+            return {'speed': speed, 'units': state['Z_DOT']['@units']}
     return "Error: Epoch not found\n", 400
 
 if __name__ == '__main__':
