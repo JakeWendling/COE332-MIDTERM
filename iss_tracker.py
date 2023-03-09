@@ -10,28 +10,59 @@ app = Flask(__name__)
 data = None
 
 @app.route('/comment', methods=['GET'])
-def getComment() -> dict:
+def getComment() -> list:
+    """
+    Returns the comments from the ISS location data.
+
+    Returns:
+        list: list of strings (comments) from ISS data 
+    """
     commentList = data['ndm']['oem']['body']['segment']['data']['COMMENT']
     return commentList
 
 @app.route('/header', methods=['GET'])
 def getHeader() -> dict:
+    """
+    Returns the header from the ISS location data.
+
+    Returns:
+        dictionary: contains header info from ISS data 
+    """
     header = data['ndm']['oem']['header']
     return header
 
 @app.route('/metadata', methods=['GET'])
 def getMetadata() -> dict:
+    """
+    Returns the metadata from the ISS location data.
+
+    Returns:
+        dictionary: contains metadata from ISS data 
+    """
     metadata = data['ndm']['oem']['body']['segment']['metadata']
     return metadata
 
 @app.route('/now', methods=['GET'])
 def getNow() -> dict:
+    """
+    Returns the most recent location of the ISS.
+
+    Returns:
+        dictionary: contains info about the location the ISS is floating over 
+    """
     lastEpoch = getEpochs()[len(getEpochs())-1]
     now = getLocation(lastEpoch)
     return now
 
 @app.route('/epochs/<epoch>/location', methods=['GET'])
 def getLocation(epoch: str) -> dict:
+    """
+    Calculates the logitude, latitude, and altitude of the ISS at a given epoch.
+    It then returns the location of the ISS above the surface.
+
+    Returns:
+        dictionary: contains info about the location the ISS is floating over at the given epoch 
+    """
     global data
     if not data:
         return "Data not found\n", 400
@@ -57,11 +88,19 @@ def getLocation(epoch: str) -> dict:
             elif lon < -180.0:
                 lon += 360.0
             geocoder = Nominatim(user_agent='iss_tracker')
-            geoloc = geocoder.reverse((lat, lon), zoom=15, language='en')
+            geoloc = None
+            i = 0
+            while not geoloc:
+                try:
+                    geoloc = geocoder.reverse((lat, lon), zoom=15-i, language='en')
+                except Error as e:
+                    return f'Geopy returned an error - {e}', 500
+                if i >= 15:
+                    return {'location': {'latitude': lat, 'longitude': lon, 'altitude': alt, 'geoposition': 'over the ocean'}, 'speed': getSpeed(epoch)}
+                i += 3
             return {'location': {'latitude': lat, 'longitude': lon, 'altitude': alt, 'geoposition': geoloc.raw['address']}, 'speed': getSpeed(epoch)}
     return "Error: Epoch not found\n", 400
     
-
 @app.route('/help', methods=['GET'])
 def help() -> str:
     """
@@ -79,6 +118,11 @@ def help() -> str:
     helpString += '     offset=int               Offsets the start of the list\n'
     helpString += '  /epochs/<epoch>          Return state vectors for a specific Epoch from the data set\n'
     helpString += '  /epochs/<epoch>/speed    Return instantaneous speed for a specific Epoch in the data set\n'
+    helpString += '  /epochs/<epoch>/location Return location info for a specific Epoch in the data set\n'
+    helpString += '  /now                     Return location info for the most recent Epoch in the data set\n'
+    helpString += '  /comment                 Return comments from the data set\n'
+    helpString += '  /header                  Return header from the data set\n'
+    helpString += '  /metadata                Return metadata from the data set\n'
     helpString += '  /help                    Return help text that briefly describes each route\n'
     helpString += 'Modifying data:\n'
     helpString += '  /delete-data             Delete all data from the dictionary object\n'
