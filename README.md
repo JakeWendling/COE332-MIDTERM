@@ -96,9 +96,9 @@ curl localhost:5000/now
 Example usage:
 ```bash
 curl localhost:5000/epochs/"2023-063T11:59:00.000Z"/location
-'''
+```
 or
-'''
+```
 curl localhost:5000/now
 ```
 Which gives:
