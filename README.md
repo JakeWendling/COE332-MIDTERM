@@ -101,7 +101,7 @@ or
 ```
 curl localhost:5000/now
 ```
-Which gives:
+Which gives something similar to the following:
 ```bash
 {
   "location": {
