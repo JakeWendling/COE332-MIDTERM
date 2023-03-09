@@ -14,16 +14,19 @@ git clone git@github.com:JakeWendling/ISS-Tracker.git
 ```
 
 ## Creating the Docker Container
+
 ### Using the prebuilt container
 Enter the following to pull the prebuilt container:
 ```bash
 docker pull jakewendling/iss_tracker:midterm
 ```
+
 ### Building a Docker image using the Dockerfile
 Enter the following to build the container using the Dockerfile contained in this repository:
 ```bash
 docker build . -t jakewendling/iss_tracker:midterm
 ```
+
 ## Running the Code
 
 This code has several functions:
@@ -41,8 +44,13 @@ First start the Flask app:
 ```bash
 docker-compose up
 ```
-
 ### Requesting Data
+Requesting data must be done in a separate terminal.
+The following instructions can be found using the app:
+```bash
+curl localhost:5000/help
+```
+This will give a help message that details all of the routes available in the app.
 
 #### To request the entire dataset:
 ```bash
