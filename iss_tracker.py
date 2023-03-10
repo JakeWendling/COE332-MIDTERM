@@ -10,13 +10,16 @@ app = Flask(__name__)
 data = None
 
 @app.route('/comment', methods=['GET'])
-def getComment() -> list:
+def getComment() -> List[str]:
     """
     Returns the comments from the ISS location data.
 
     Returns:
         list: list of strings (comments) from ISS data 
     """
+    global data
+    if not data:
+        return "Data not found\n", 400
     commentList = data['ndm']['oem']['body']['segment']['data']['COMMENT']
     return commentList
 
@@ -28,6 +31,9 @@ def getHeader() -> dict:
     Returns:
         dictionary: contains header info from ISS data 
     """
+    global data
+    if not data:
+        return "Data not found\n", 400
     header = data['ndm']['oem']['header']
     return header
 
@@ -39,6 +45,9 @@ def getMetadata() -> dict:
     Returns:
         dictionary: contains metadata from ISS data 
     """
+    global data
+    if not data:
+        return "Data not found\n", 400
     metadata = data['ndm']['oem']['body']['segment']['metadata']
     return metadata
 
@@ -50,15 +59,31 @@ def getNow() -> dict:
     Returns:
         dictionary: contains info about the location the ISS is floating over 
     """
-    lastEpoch = getEpochs()[len(getEpochs())-1]
-    now = getLocation(lastEpoch)
-    return now
+    global data
+    if not data:
+        return "Data not found\n", 400
+    time_now = time.time()
+    min_time_difference = None
+    closest_epoch = None
+    for epoch in getEpochs():
+        time_epoch = time.mktime(time.strptime(epoch[:-5], '%Y-%jT%H:%M:%S'))        
+        time_difference = abs(time_now - time_epoch)
+        if not min_time_difference or time_difference < min_time_difference:
+            min_time_difference = time_difference
+            closest_epoch = epoch
+    now_location = getLocation(closest_epoch)
+    now_location['seconds_from_now'] = min_time_difference
+    now_location['closest_epoch'] = closest_epoch
+    return now_location
 
 @app.route('/epochs/<epoch>/location', methods=['GET'])
 def getLocation(epoch: str) -> dict:
     """
     Calculates the logitude, latitude, and altitude of the ISS at a given epoch.
     It then returns the location of the ISS above the surface.
+    
+    Args:
+        epoch: A string representing an epoch.
 
     Returns:
         dictionary: contains info about the location the ISS is floating over at the given epoch 
